@@ -1,13 +1,37 @@
-# import tensorflow as tf
-# import numpy as np
-# from keras.models import Sequential
-# from keras.layers import Dense
-# from tensorflow import keras
-# import matplotlib.pyplot as plt
-# import time
-# import copy
+import tensorflow as tf
+import numpy as np
+from keras.models import Sequential
+from keras.models import load_model
+from keras.layers import Dense
+from tensorflow import keras
+import matplotlib.pyplot as plt
+import time
+import copy
+import os
+import h5py
+from keras.regularizers import l1
+from keras.regularizers import l2
+import tensorflow as tf
+import numpy as np
+from keras.models import Sequential
+from keras.layers import Dense
+from tensorflow import keras
+# from tensorflow.keras import layers
+from tensorflow.python.keras.layers import Input, Dense
 
 
+import matplotlib.pyplot as plt
+import time
+import copy
+# import tensorflow_hub as hub
+import matplotlib
+from tensorflow.python.keras import regularizers
+from keras.regularizers import l1
+from keras.regularizers import l2
+from keras.layers import InputLayer
+# from IPython.display import clear_output
+
+model=None
 
 # -*- coding: utf-8 -*-
 
@@ -100,9 +124,9 @@ class Ui_MainWindow(object):
         self.label_10 = QtWidgets.QLabel(self.centralwidget)
         self.label_10.setGeometry(QtCore.QRect(380, 570, 47, 13))
         self.label_10.setObjectName("label_10")
-        self.regLoss = QtWidgets.QLineEdit(self.centralwidget)
-        self.regLoss.setGeometry(QtCore.QRect(440, 570, 61, 20))
-        self.regLoss.setObjectName("regLoss")
+        self.L2RegStrength = QtWidgets.QLineEdit(self.centralwidget)
+        self.L2RegStrength.setGeometry(QtCore.QRect(440, 570, 61, 20))
+        self.L2RegStrength.setObjectName("regLoss")
         self.label_11 = QtWidgets.QLabel(self.centralwidget)
         self.label_11.setGeometry(QtCore.QRect(30, 330, 81, 16))
         self.label_11.setObjectName("label_11")
@@ -186,21 +210,83 @@ class Ui_MainWindow(object):
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
 
+    def defineModel(self):
+
+        reg = None
+        reg = l2(self.regStrength)
+
+        self.model = Sequential()
+        self.model.add(InputLayer(input_shape=(28, 28, 1)))
+        self.model.add(tf.keras.layers.Conv2D(64, kernel_size=(5, 5), activation="relu", kernel_regularizer=reg))
+        self.model.add(tf.keras.layers.Conv2D(64, kernel_size=(5, 5), activation="relu", kernel_regularizer=reg))
+        self.model.add(tf.keras.layers.Flatten())
+        # model.add(layers.Dropout(0.25))
+        self.model.add(tf.keras.layers.Dense(128, activation="relu", kernel_regularizer=reg))
+        # model.add(layers.Dropout(0.5))
+        self.model.add(tf.keras.layers.Dense(10, activation="softmax", kernel_regularizer=reg))
+        self.model.build()
+
+    def prepareDataset(self):
+        print("prepareDataset")
+
+        (self.x_train, self.y_train), (self.x_test, self.y_test) = keras.datasets.mnist.load_data()
+        self.x_train = self.x_train.astype("float32") / 255
+        self.x_test = self.x_test.astype("float32") / 255
+        self.x_train = np.expand_dims(self.x_train, -1)
+        self.x_test = np.expand_dims(self.x_test, -1)
+        self.y_train = keras.utils.to_categorical(self.y_train, 10)
+        self.y_test = keras.utils.to_categorical(self.y_test, 10)
+
+    def trainModel(self):
+        print("trainModel")
+
+        # self.model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+        # self.model.fit(self.x_train, self.y_train, batch_size=128, epochs=1, validation_split=0.1)
+        self.model.load_weights('reg2model.h5')
+        self.model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
+
+
+    def evalModel(self):
+        print("EvalModel")
+
+        score = self.model.evaluate(self.x_test, self.y_test, verbose=0)
+        print("Test loss:", score[0])
+        print("Test accuracy:", score[1])
+
+
+    def calcReg(self,strength):
+        self.reg_loss = 0
+
+        for layer in self.model.layers:
+            for temp in layer.weights:
+                A = np.asarray(temp)
+
+                added = None
+
+                A = np.power(A, 2)
+                added = np.sum(A)
+
+
+                self.reg_loss = self.reg_loss + added
+
+        self.reg_loss = self.reg_loss * strength
+        print(self.reg_loss)
+
     def start(self):
-
         self.k=int(self.attackBudget.text())
-
         self.epsilon_adv=float(self.advEpsilon.text())
         self.epsilon_fnd=float(self.fndEpsilon.text())
-
         self.tile_fnd = int(self.fndtile.text())
         self.tile_adv = int(self.advTile.text())
-
-        self.reg=float(self.regLoss.text())
+        self.regStrength=float(self.L2RegStrength.text())
         self.N=int(self.streamLength.text())
         self.T=float(self.period.text())
 
-        
+        self.prepareDataset()
+        self.defineModel()
+        self.trainModel()
+        self.evalModel()
+        self.calcReg(self.regStrength)
 
 
     def retranslateUi(self, MainWindow):
@@ -243,14 +329,21 @@ class Ui_MainWindow(object):
 
 
 
+
+
+
 if __name__ == "__main__":
     import sys
+
+
     app = QtWidgets.QApplication(sys.argv)
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
 
 
+
     MainWindow.show()
+
 
     sys.exit(app.exec_())
