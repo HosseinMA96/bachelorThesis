@@ -270,7 +270,113 @@ class Ui_MainWindow(object):
                 self.reg_loss = self.reg_loss + added
 
         self.reg_loss = self.reg_loss * strength
-        print(self.reg_loss)
+        # print(self.reg_loss)
+
+    def prepareCorrectlyClassifiedStream(self):
+        self.streamIndices=[]
+
+        for i in range(self.N):
+            if np.argmax(self.y_test[i])==np.argmax(self.model(np.expand_dims(self.x_test[i], axis=0))):
+                self.streamIndices.append(i)
+                print(self.AO(i)[1],self.FO(i)[1])
+
+
+        print("\n")
+        print(len( self.streamIndices))
+
+    # print(self.model(np.expand_dims(self.x_test[0], axis=0)))
+    # print(self.y_test[0])
+
+    def FO(self, idx):
+
+        y = np.expand_dims(self.y_test[idx], axis=0)
+        temp = np.squeeze(self.x_test[idx])
+        x = copy.deepcopy(temp)
+
+        cce = tf.keras.losses.CategoricalCrossentropy()
+        perturbation = np.zeros((28, 28))
+        num = int(28 / self.tile_fnd)
+
+        for i in range(num):
+            for j in range(num):
+                plus = copy.deepcopy(x)
+                minus = copy.deepcopy(x)
+
+                plus[i * self.tile_fnd:(i + 1) * self.tile_fnd, j * self.tile_fnd:(j + 1) * self.tile_fnd] = plus[
+                                                                                                             i * self.tile_fnd:(
+                                                                                                                                           i + 1) * self.tile_fnd,
+                                                                                                             j * self.tile_fnd:(
+                                                                                                                                           j + 1) * self.tile_fnd] + self.epsilon_fnd
+                minus[i * self.tile_fnd:(i + 1) * self.tile_fnd, j * self.tile_fnd:(j + 1) * self.tile_fnd] = minus[
+                                                                                                              i * self.tile_fnd:(
+                                                                                                                                            i + 1) * self.tile_fnd,
+                                                                                                              j * self.tile_fnd:(
+                                                                                                                                            j + 1) * self.tile_fnd] - self.epsilon_adv
+
+                plus = np.expand_dims(plus, axis=(0, -1))
+                minus = np.expand_dims(minus, axis=(0, -1))
+                plus = self.model(plus)
+                minus = self.model(minus)
+                plus = cce(y, plus).numpy()
+                minus = cce(y, minus).numpy()
+
+                if plus < minus:
+                    perturbation[i * self.tile_fnd:(i + 1) * self.tile_fnd,
+                    j * self.tile_fnd:(j + 1) * self.tile_fnd] = self.epsilon_adv
+                    x[i * self.tile_fnd:(i + 1) * self.tile_fnd,
+                    j * self.tile_fnd:(j + 1) * self.tile_fnd] += self.epsilon_fnd
+
+
+                else:
+                    perturbation[i * self.tile_fnd:(i + 1) * self.tile_fnd,
+                    j * self.tile_fnd:(j + 1) * self.tile_fnd] = -self.epsilon_fnd
+                    x[i * self.tile_fnd:(i + 1) * self.tile_fnd,
+                    j * self.tile_fnd:(j + 1) * self.tile_fnd] -= self.epsilon_fnd
+
+        temp = self.model(np.expand_dims(perturbation + x, axis=(0, -1)))
+        temp = cce(y, temp).numpy()
+        return (perturbation, temp+self.reg_loss)
+
+    def AO(self,idx):
+
+        y = np.expand_dims(self.y_test[idx], axis=0)
+        temp = np.squeeze(self.x_test[idx])
+        x = copy.deepcopy(temp)
+
+        cce = tf.keras.losses.CategoricalCrossentropy()
+        perturbation = np.zeros((28, 28))
+        num = int(28 / self.tile_adv)
+
+        for i in range(num):
+            for j in range(num):
+                plus = copy.deepcopy(x)
+                minus = copy.deepcopy(x)
+
+                plus[i * self.tile_adv:(i + 1) * self.tile_adv, j * self.tile_adv:(j + 1) * self.tile_adv] = plus[i * self.tile_adv:(i + 1) * self.tile_adv,
+                                                                         j * self.tile_adv:(j + 1) * self.tile_adv] + self.epsilon_adv
+                minus[i * self.tile_adv:(i + 1) * self.tile_adv, j * self.tile_adv:(j + 1) * self.tile_adv] = minus[i * self.tile_adv:(i + 1) * self.tile_adv,
+                                                                          j * self.tile_adv:(j + 1) * self.tile_adv] - self.epsilon_adv
+
+                plus = np.expand_dims(plus, axis=(0, -1))
+                minus = np.expand_dims(minus, axis=(0, -1))
+                plus = self.model(plus)
+                minus = self.model(minus)
+                plus = cce(y, plus).numpy()
+                minus = cce(y, minus).numpy()
+
+                if plus > minus:
+                    perturbation[i * self.tile_adv:(i + 1) * self.tile_adv, j * self.tile_adv:(j + 1) * self.tile_adv] = self.epsilon_adv
+                    x[i * self.tile_adv:(i + 1) * self.tile_adv, j * self.tile_adv:(j + 1) * self.tile_adv] += self.epsilon_adv
+
+
+                else:
+                    perturbation[i * self.tile_adv:(i + 1) * self.tile_adv, j * self.tile_adv:(j + 1) * self.tile_adv] = -self.epsilon_adv
+                    x[i * self.tile_adv:(i + 1) * self.tile_adv, j * self.tile_adv:(j + 1) * self.tile_adv] -= self.epsilon_adv
+
+
+        temp=self.model(np.expand_dims(perturbation+x, axis=(0, -1)))
+        temp=cce(y,temp).numpy()
+        return(perturbation,temp+self.reg_loss)
 
     def start(self):
         self.k=int(self.attackBudget.text())
@@ -285,8 +391,15 @@ class Ui_MainWindow(object):
         self.prepareDataset()
         self.defineModel()
         self.trainModel()
-        self.evalModel()
+        # self.evalModel()
         self.calcReg(self.regStrength)
+        self.prepareCorrectlyClassifiedStream()
+
+        # print("leshape",self.x_test[0].shape)
+        # print(self.model(np.expand_dims(self.x_test[0], axis=0)))
+        # print(self.y_test[0])
+
+
 
 
     def retranslateUi(self, MainWindow):
@@ -340,8 +453,6 @@ if __name__ == "__main__":
     MainWindow = QtWidgets.QMainWindow()
     ui = Ui_MainWindow()
     ui.setupUi(MainWindow)
-
-
 
     MainWindow.show()
 
