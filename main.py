@@ -146,9 +146,9 @@ class Ui_MainWindow(object):
         self.label_14 = QtWidgets.QLabel(self.centralwidget)
         self.label_14.setGeometry(QtCore.QRect(30, 390, 81, 16))
         self.label_14.setObjectName("label_14")
-        self.estimatedReg = QtWidgets.QLabel(self.centralwidget)
-        self.estimatedReg.setGeometry(QtCore.QRect(30, 410, 47, 13))
-        self.estimatedReg.setObjectName("estimatedReg")
+        self.realRegLoss = QtWidgets.QLabel(self.centralwidget)
+        self.realRegLoss.setGeometry(QtCore.QRect(30, 410, 47, 13))
+        self.realRegLoss.setObjectName("estimatedReg")
         self.decision = QtWidgets.QLabel(self.centralwidget)
         self.decision.setGeometry(QtCore.QRect(310, 280, 47, 13))
         self.decision.setObjectName("decision")
@@ -213,7 +213,7 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
-   
+
         self.widget.setScaledContents(True)
         self.widget_2.setScaledContents(True)
         self.widget.setPixmap(QtGui.QPixmap('second.png'))
@@ -275,6 +275,7 @@ class Ui_MainWindow(object):
         MLG_boundary=-np.log(0.5)
         HLG_boundary=np.log(10)
         self.secretaryStage.setText(stage)
+        self.realRegLoss.setText(str(round(self.reg_loss,4)))
 
 
         for i in range(observationIndex):
@@ -286,12 +287,12 @@ class Ui_MainWindow(object):
 
 
             if bestEstimatedReg <0:
-                bestEstimatedReg=min(friendlyLoss,initLoss)
-                self.estimatedReg.setText(str(bestEstimatedReg))
+                bestEstimatedReg=round(min(friendlyLoss,initLoss),4)
+                # self.realRegLoss.setText(str(bestEstimatedReg))
 
             else:
-                bestEstimatedReg=min(bestEstimatedReg,initLoss,friendlyLoss)
-                self.estimatedReg.setText(str(min(initLoss,friendlyLoss)))
+                bestEstimatedReg=round(min(bestEstimatedReg,initLoss,friendlyLoss),4)
+                # self.realRegLoss.setText(str(min(initLoss, friendlyLoss)))
 
 
             self.bestRegEstimation.setText(str(bestEstimatedReg))
@@ -303,6 +304,7 @@ class Ui_MainWindow(object):
             self.showImage(np.squeeze(self.x_test[self.streamIndices[i]])+np.squeeze(perturbation), "right")
 
             estimatedCE=adversarialLoss-bestEstimatedReg
+            estimatedCE=round(estimatedCE,4)
             self.CELoss.setText(str(estimatedCE))
 
 
@@ -368,6 +370,9 @@ class Ui_MainWindow(object):
 
             self.foolRate.setText(str(100*successFullAttacks/self.K))
 
+
+
+
             if remained==0:
                 break
 
@@ -385,6 +390,10 @@ class Ui_MainWindow(object):
         self.secretaryStage.setText(stage)
 
         for i in range(observationIndex,len(self.streamIndices)):
+
+            if remained == 0:
+                break
+
             self.showImage(self.x_test[self.streamIndices[i]], "left")
             self.shotsLeft.setText(str(remained))
             friendly = self.FO(self.streamIndices[i])
@@ -393,11 +402,11 @@ class Ui_MainWindow(object):
 
             if bestEstimatedReg < 0:
                 bestEstimatedReg = min(friendlyLoss, initLoss)
-                self.estimatedReg.setText(str(bestEstimatedReg))
+                # self.realRegLoss.setText(str(bestEstimatedReg))
 
             else:
-                bestEstimatedReg = min(bestEstimatedReg, initLoss, friendlyLoss)
-                self.estimatedReg.setText(str(min(initLoss, friendlyLoss)))
+                bestEstimatedReg = round(min(bestEstimatedReg, initLoss, friendlyLoss),4)
+                # self.realRegLoss.setText(str(min(initLoss, friendlyLoss)))
 
             self.bestRegEstimation.setText(str(bestEstimatedReg))
             adversarial = self.AO(self.streamIndices[i])
@@ -406,9 +415,11 @@ class Ui_MainWindow(object):
             perturbation=adversarial[0]
 
             estimatedCE = adversarialLoss - bestEstimatedReg
+            estimatedCE = round(estimatedCE, 4)
+
             self.CELoss.setText(str(estimatedCE))
 
-            self.showImage(self, np.squeeze(self.x_test[self.streamIndices[i]])+np.squeeze(perturbation), "right")
+            self.showImage( np.squeeze(self.x_test[self.streamIndices[i]])+np.squeeze(perturbation), "right")
 
             innerLossGroup = None
 
@@ -689,12 +700,12 @@ class Ui_MainWindow(object):
 
 
         xx = (x - np.min(x))/np.ptp(x)
-        print(location, np.amax(xx), np.amin(xx))
+        # print(location, np.amax(xx), np.amin(xx))
 
 
         if location=="left":
             stacked_img = np.stack((np.squeeze(xx),) * 3, axis=-1)
-            print(stacked_img.shape)
+            # print(stacked_img.shape)
             stacked_img = stacked_img * 255
             stacked_img = stacked_img.astype(np.uint8)
             stacked_img = Image.fromarray(stacked_img)
@@ -756,8 +767,8 @@ class Ui_MainWindow(object):
         self.label_11.setText(_translate("MainWindow", "Loss Group"))
         self.label_12.setText(_translate("MainWindow", "Period(s)"))
         self.lossGroup.setText(_translate("MainWindow", "N/A"))
-        self.label_14.setText(_translate("MainWindow", "estimated Reg"))
-        self.estimatedReg.setText(_translate("MainWindow", "N/A"))
+        self.label_14.setText(_translate("MainWindow", "reg loss"))
+        self.realRegLoss.setText(_translate("MainWindow", "N/A"))
         self.decision.setText(_translate("MainWindow", "N/A"))
         self.label_17.setText(_translate("MainWindow", "Secretary memory"))
         self.label_18.setText(_translate("MainWindow", "best Reg estimated"))
