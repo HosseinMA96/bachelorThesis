@@ -149,7 +149,7 @@ class Ui_MainWindow(object):
         self.decision = QtWidgets.QLabel(self.centralwidget)
         self.decision.setGeometry(QtCore.QRect(310, 280, 47, 13))
         self.decision.setObjectName("decision")
-        self.secretaryMemory = QtWidgets.QTextBrowser(self.centralwidget)
+        self.secretaryMemory = QtWidgets.QLabel(self.centralwidget)
         self.secretaryMemory.setGeometry(QtCore.QRect(10, 520, 481, 31))
         self.secretaryMemory.setObjectName("secretaryMemory")
         self.label_17 = QtWidgets.QLabel(self.centralwidget)
@@ -297,14 +297,14 @@ class Ui_MainWindow(object):
 
 
 
-            lossGroup=None
+            innerLossGroup=None
 
             if estimatedCE> HLG_boundary:
-                lossGroup="HLG"
-                self.lossGroup.setText(lossGroup)
+                innerLossGroup="HLG"
+                self.lossGroup.setText(innerLossGroup)
                 self.decision.setText("Attack")
                 remained = remained - 1
-                self.decision.setText(str(attackResult))
+                self.result.setText(str(attackResult))
                 self.shotsLeft.setText(str(remained))
 
                 while len(secretaryMemory)>remained and len(secretaryMemory)>0:
@@ -312,11 +312,11 @@ class Ui_MainWindow(object):
 
                 if attackResult!="Fail":
                     successFullAttacks+=1
-                    self.result.setText("Success")
+                    # self.result.setText("Success")
 
 
-                else:
-                    self.result.setText("Fail")
+                # else:
+                    # self.result.setText("Fail")
 
 
 
@@ -325,28 +325,33 @@ class Ui_MainWindow(object):
 
 
             elif estimatedCE> MLG_boundary:
-                lossGroup="MLG"
-                self.lossGroup.setText(lossGroup)
+                innerLossGroup="MLG"
+                self.lossGroup.setText(innerLossGroup)
 
                 if len(secretaryMemory)<remained:
                     self.decision.setText("Pass-Remember")
+                    self.result.setText("N/A")
                     secretaryMemory.append(estimatedCE)
                     secretaryMemory.sort()
 
                 elif estimatedCE>secretaryMemory[0]:
                     self.decision.setText("Pass-Remember")
+                    self.result.setText("N/A")
+
                     secretaryMemory[0]=estimatedCE
                     secretaryMemory.sort()
 
                 else:
                     self.decision.setText("Pass-Ignore")
+                    self.result.setText("N/A")
+
 
 
 
 
             else:
-                lossGroup = "LLG"
-                self.lossGroup.setText(lossGroup)
+                innerLossGroup = "LLG"
+                self.lossGroup.setText(innerLossGroup)
                 self.decision.setText("Ignore")
                 self.result.setText("N/A")
 
@@ -356,8 +361,12 @@ class Ui_MainWindow(object):
             if remained==0:
                 break
 
+            nl=[]
 
-            # self.secretaryMemory.setText(str(secretaryMemory))
+            for i in range(len(secretaryMemory)):
+                nl.append(round(secretaryMemory[i], 2))
+
+            self.secretaryMemory.setText(str(nl))
             time.sleep(self.T)
 
 
@@ -389,15 +398,15 @@ class Ui_MainWindow(object):
             self.CELoss.setText(str(estimatedCE))
 
 
-            lossGroup = None
+            innerLossGroup = None
 
             if estimatedCE > HLG_boundary:
 
-                lossGroup = "HLG"
-                self.lossGroup.setText(lossGroup)
+                innerLossGroup = "HLG"
+                self.lossGroup.setText(innerLossGroup)
                 self.decision.setText("Attack")
                 remained = remained - 1
-                self.decision.setText(str(attackResult))
+                self.result.setText(str(attackResult))
                 self.shotsLeft.setText(str(remained))
 
                 while len(secretaryMemory) > remained and len(secretaryMemory)>0:
@@ -405,11 +414,11 @@ class Ui_MainWindow(object):
 
                 if attackResult != "Fail":
                     successFullAttacks += 1
-                    self.result.setText("Success")
+                    # self.result.setText("Success")
 
 
-                else:
-                    self.result.setText("Fail")
+                # else:
+                    # self.result.setText("Fail")
 
 
 
@@ -420,10 +429,10 @@ class Ui_MainWindow(object):
 
 
             elif estimatedCE > MLG_boundary:
-                lossGroup = "MLG"
+                innerLossGroup = "MLG"
 
 
-                self.lossGroup.setText(lossGroup)
+                self.lossGroup.setText(innerLossGroup)
 
                 if len(secretaryMemory) < remained:
                     self.decision.setText("Attack-Remember")
@@ -431,41 +440,53 @@ class Ui_MainWindow(object):
                     secretaryMemory.sort()
                     self.shotsLeft.setText(str(remained))
                     remained = remained - 1
+                    self.result.setText(str(attackResult))
 
                     if attackResult != "Fail":
                         successFullAttacks += 1
-                        self.result.setText("Success")
 
+
+                    # else:
+                    #     self.result.setText("Fail")
+
+
+
+                elif len(secretaryMemory)==0 or estimatedCE > secretaryMemory[0]:
+
+                    if len(secretaryMemory)>0:
+                        secretaryMemory[0] = estimatedCE
 
                     else:
-                        self.result.setText("Fail")
+                        secretaryMemory.append(estimatedCE)
 
 
-                elif estimatedCE > secretaryMemory[0]:
-                    secretaryMemory[0] = estimatedCE
 
                     self.decision.setText("Attack-Remember")
                     secretaryMemory.sort()
                     self.shotsLeft.setText(str(remained))
                     remained = remained - 1
+                    self.result.setText(str(attackResult))
+
 
                     if attackResult != "Fail":
                         successFullAttacks += 1
-                        self.result.setText("Success")
+                        # self.result.setText("Success")
 
 
-                    else:
-                        self.result.setText("Fail")
+                    # else:
+                    #     self.result.setText("Fail")
 
 
                 else:
                     self.decision.setText("Pass-Ignore")
+                    self.result.setText("N/A")
+
+
 
             else :
-                lossGroup = "LLG";
+                innerLossGroup = "LLG";
 
-
-                self.lossGroup.setText(lossGroup)
+                self.lossGroup.setText(innerLossGroup)
                 self.decision.setText("Ignore")
                 self.result.setText("N/A")
 
@@ -474,7 +495,12 @@ class Ui_MainWindow(object):
             if remained == 0:
                 break
 
-            # self.secretaryMemory.setText(str(secretaryMemory))
+            nl=[]
+
+            for i in range(len(secretaryMemory)):
+                nl.append(round(secretaryMemory[i],2))
+
+            self.secretaryMemory.setText(str(nl))
 
 
             time.sleep(self.T)
@@ -615,7 +641,7 @@ class Ui_MainWindow(object):
 
 
 
-        return(perturbation,temp+self.reg_loss,init+self.reg_loss,result)
+        return(perturbation,temp+self.reg_loss,result)
 
     def start(self):
         self.K=int(self.attackBudget.text())
