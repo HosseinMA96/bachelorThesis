@@ -13,6 +13,7 @@ from keras.regularizers import l1
 from keras.regularizers import l2
 import tensorflow as tf
 import numpy as np
+import threading
 from keras.models import Sequential
 from keras.layers import Dense
 from tensorflow import keras
@@ -227,7 +228,7 @@ class Ui_MainWindow(object):
         self.model.build()
 
     def prepareDataset(self):
-        print("prepareDataset")
+
 
         (self.x_train, self.y_train), (self.x_test, self.y_test) = keras.datasets.mnist.load_data()
         self.x_train = self.x_train.astype("float32") / 255
@@ -238,7 +239,7 @@ class Ui_MainWindow(object):
         self.y_test = keras.utils.to_categorical(self.y_test, 10)
 
     def trainModel(self):
-        print("trainModel")
+
 
         # self.model.compile(loss="categorical_crossentropy", optimizer="adam", metrics=["accuracy"])
         # self.model.fit(self.x_train, self.y_train, batch_size=128, epochs=1, validation_split=0.1)
@@ -247,11 +248,236 @@ class Ui_MainWindow(object):
 
 
     def evalModel(self):
-        print("EvalModel")
+
 
         score = self.model.evaluate(self.x_test, self.y_test, verbose=0)
         print("Test loss:", score[0])
         print("Test accuracy:", score[1])
+
+    def criteriaAlgorithm(self):
+
+        observationIndex=int(len(self.streamIndices)/np.exp(2))
+        bestEstimatedReg=-1
+        secretaryMemory=[]
+        remained=self.K
+        stage="Observation"
+
+
+        successFullAttacks=0
+        MLG_boundary=-np.log(0.5)
+        HLG_boundary=np.log(10)
+        self.secretaryStage.setText(stage)
+
+
+        for i in range(observationIndex):
+
+
+            self.shotsLeft.setText(str(remained))
+            friendly=self.FO(self.streamIndices[i])
+            friendlyLoss,initLoss=friendly[1],friendly[2]
+
+
+            if bestEstimatedReg <0:
+                bestEstimatedReg=min(friendlyLoss,initLoss)
+                self.estimatedReg.setText(str(bestEstimatedReg))
+
+            else:
+                bestEstimatedReg=min(bestEstimatedReg,initLoss,friendlyLoss)
+                self.estimatedReg.setText(str(min(initLoss,friendlyLoss)))
+
+
+            self.bestRegEstimation.setText(str(bestEstimatedReg))
+            adversarial=self.AO(self.streamIndices[i])
+            attackResult=adversarial[2]
+            adversarialLoss=adversarial[1]
+
+
+            estimatedCE=adversarialLoss-bestEstimatedReg
+            self.CELoss.setText(str(estimatedCE))
+
+
+
+            lossGroup=None
+
+            if estimatedCE> HLG_boundary:
+                lossGroup="HLG"
+                self.lossGroup.setText(lossGroup)
+                self.decision.setText("Attack")
+                remained = remained - 1
+                self.decision.setText(str(attackResult))
+                self.shotsLeft.setText(str(remained))
+
+                while len(secretaryMemory)>remained and len(secretaryMemory)>0:
+                    secretaryMemory.pop(0)
+
+                if attackResult!="Fail":
+                    successFullAttacks+=1
+                    self.result.setText("Success")
+
+
+                else:
+                    self.result.setText("Fail")
+
+
+
+
+
+
+
+            elif estimatedCE> MLG_boundary:
+                lossGroup="MLG"
+                self.lossGroup.setText(lossGroup)
+
+                if len(secretaryMemory)<remained:
+                    self.decision.setText("Pass-Remember")
+                    secretaryMemory.append(estimatedCE)
+                    secretaryMemory.sort()
+
+                elif estimatedCE>secretaryMemory[0]:
+                    self.decision.setText("Pass-Remember")
+                    secretaryMemory[0]=estimatedCE
+                    secretaryMemory.sort()
+
+                else:
+                    self.decision.setText("Pass-Ignore")
+
+
+
+
+            else:
+                lossGroup = "LLG"
+                self.lossGroup.setText(lossGroup)
+                self.decision.setText("Ignore")
+                self.result.setText("N/A")
+
+
+            self.foolRate.setText(str(100*successFullAttacks/self.K))
+
+            if remained==0:
+                break
+
+
+            # self.secretaryMemory.setText(str(secretaryMemory))
+            time.sleep(self.T)
+
+
+
+        stage="Selection"
+        self.secretaryStage.setText(stage)
+
+        for i in range(observationIndex,len(self.streamIndices)):
+
+            self.shotsLeft.setText(str(remained))
+            friendly = self.FO(self.streamIndices[i])
+            friendlyLoss, initLoss = friendly[1],friendly[2]
+
+
+            if bestEstimatedReg < 0:
+                bestEstimatedReg = min(friendlyLoss, initLoss)
+                self.estimatedReg.setText(str(bestEstimatedReg))
+
+            else:
+                bestEstimatedReg = min(bestEstimatedReg, initLoss, friendlyLoss)
+                self.estimatedReg.setText(str(min(initLoss, friendlyLoss)))
+
+            self.bestRegEstimation.setText(str(bestEstimatedReg))
+            adversarial = self.AO(self.streamIndices[i])
+            attackResult = adversarial[2]
+            adversarialLoss = adversarial[1]
+
+            estimatedCE = adversarialLoss - bestEstimatedReg
+            self.CELoss.setText(str(estimatedCE))
+
+
+            lossGroup = None
+
+            if estimatedCE > HLG_boundary:
+
+                lossGroup = "HLG"
+                self.lossGroup.setText(lossGroup)
+                self.decision.setText("Attack")
+                remained = remained - 1
+                self.decision.setText(str(attackResult))
+                self.shotsLeft.setText(str(remained))
+
+                while len(secretaryMemory) > remained and len(secretaryMemory)>0:
+                    secretaryMemory.pop(0)
+
+                if attackResult != "Fail":
+                    successFullAttacks += 1
+                    self.result.setText("Success")
+
+
+                else:
+                    self.result.setText("Fail")
+
+
+
+
+
+
+
+
+
+            elif estimatedCE > MLG_boundary:
+                lossGroup = "MLG"
+
+
+                self.lossGroup.setText(lossGroup)
+
+                if len(secretaryMemory) < remained:
+                    self.decision.setText("Attack-Remember")
+                    secretaryMemory.append(estimatedCE)
+                    secretaryMemory.sort()
+                    self.shotsLeft.setText(str(remained))
+                    remained = remained - 1
+
+                    if attackResult != "Fail":
+                        successFullAttacks += 1
+                        self.result.setText("Success")
+
+
+                    else:
+                        self.result.setText("Fail")
+
+
+                elif estimatedCE > secretaryMemory[0]:
+                    secretaryMemory[0] = estimatedCE
+
+                    self.decision.setText("Attack-Remember")
+                    secretaryMemory.sort()
+                    self.shotsLeft.setText(str(remained))
+                    remained = remained - 1
+
+                    if attackResult != "Fail":
+                        successFullAttacks += 1
+                        self.result.setText("Success")
+
+
+                    else:
+                        self.result.setText("Fail")
+
+
+                else:
+                    self.decision.setText("Pass-Ignore")
+
+            else :
+                lossGroup = "LLG";
+
+
+                self.lossGroup.setText(lossGroup)
+                self.decision.setText("Ignore")
+                self.result.setText("N/A")
+
+            self.foolRate.setText(str(100 * successFullAttacks / self.K))
+
+            if remained == 0:
+                break
+
+            # self.secretaryMemory.setText(str(secretaryMemory))
+
+
+            time.sleep(self.T)
 
 
     def calcReg(self,strength):
@@ -278,11 +504,10 @@ class Ui_MainWindow(object):
         for i in range(self.N):
             if np.argmax(self.y_test[i])==np.argmax(self.model(np.expand_dims(self.x_test[i], axis=0))):
                 self.streamIndices.append(i)
-                print(self.AO(i)[1],self.FO(i)[1])
 
 
-        print("\n")
-        print(len( self.streamIndices))
+
+
 
     # print(self.model(np.expand_dims(self.x_test[0], axis=0)))
     # print(self.y_test[0])
@@ -335,7 +560,10 @@ class Ui_MainWindow(object):
 
         temp = self.model(np.expand_dims(perturbation + x, axis=(0, -1)))
         temp = cce(y, temp).numpy()
-        return (perturbation, temp+self.reg_loss)
+
+        init = self.model(np.expand_dims(x, axis=(0, -1)))
+        init = cce(y, init).numpy()
+        return (perturbation, temp+self.reg_loss,init+self.reg_loss)
 
     def AO(self,idx):
 
@@ -375,18 +603,29 @@ class Ui_MainWindow(object):
 
 
         temp=self.model(np.expand_dims(perturbation+x, axis=(0, -1)))
+        result="Fail"
+
+        if np.argmax(temp) != np.argmax(self.y_test[idx]):
+            result=np.argmax(temp)
+
         temp=cce(y,temp).numpy()
-        return(perturbation,temp+self.reg_loss)
+
+        init=self.model(np.expand_dims(x, axis=(0, -1)))
+        init = cce(y, init).numpy()
+
+
+
+        return(perturbation,temp+self.reg_loss,init+self.reg_loss,result)
 
     def start(self):
-        self.k=int(self.attackBudget.text())
+        self.K=int(self.attackBudget.text())
         self.epsilon_adv=float(self.advEpsilon.text())
         self.epsilon_fnd=float(self.fndEpsilon.text())
         self.tile_fnd = int(self.fndtile.text())
         self.tile_adv = int(self.advTile.text())
         self.regStrength=float(self.L2RegStrength.text())
         self.N=int(self.streamLength.text())
-        self.T=float(self.period.text())
+        self.T=int(self.period.text())
 
         self.prepareDataset()
         self.defineModel()
@@ -394,12 +633,23 @@ class Ui_MainWindow(object):
         # self.evalModel()
         self.calcReg(self.regStrength)
         self.prepareCorrectlyClassifiedStream()
+        thread = self.thread(self)
+        thread.start()
 
         # print("leshape",self.x_test[0].shape)
         # print(self.model(np.expand_dims(self.x_test[0], axis=0)))
         # print(self.y_test[0])
 
+    class thread(threading.Thread):
+        def __init__(self,other):
+            threading.Thread.__init__(self)
+            self.otherObject=other
 
+
+            # helper function to execute the threads
+
+        def run(self):
+            self.otherObject.criteriaAlgorithm()
 
 
     def retranslateUi(self, MainWindow):
