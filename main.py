@@ -1,3 +1,5 @@
+import io
+
 import tensorflow as tf
 import numpy as np
 from keras.models import Sequential
@@ -11,6 +13,7 @@ import os
 import h5py
 from keras.regularizers import l1
 from keras.regularizers import l2
+from PIL import Image
 import tensorflow as tf
 import numpy as np
 import threading
@@ -95,10 +98,10 @@ class Ui_MainWindow(object):
         self.streamLength = QtWidgets.QLineEdit(self.centralwidget)
         self.streamLength.setGeometry(QtCore.QRect(300, 600, 61, 20))
         self.streamLength.setObjectName("streamLength")
-        self.widget = QtWidgets.QWidget(self.centralwidget)
+        self.widget = QtWidgets.QLabel(self.centralwidget)
         self.widget.setGeometry(QtCore.QRect(20, 40, 141, 121))
         self.widget.setObjectName("widget")
-        self.widget_2 = QtWidgets.QWidget(self.centralwidget)
+        self.widget_2 = QtWidgets.QLabel(self.centralwidget)
         self.widget_2.setGeometry(QtCore.QRect(310, 40, 141, 121))
         self.widget_2.setObjectName("widget_2")
         self.label_4 = QtWidgets.QLabel(self.centralwidget)
@@ -210,6 +213,11 @@ class Ui_MainWindow(object):
 
         self.retranslateUi(MainWindow)
         QtCore.QMetaObject.connectSlotsByName(MainWindow)
+   
+        self.widget.setScaledContents(True)
+        self.widget_2.setScaledContents(True)
+        self.widget.setPixmap(QtGui.QPixmap('second.png'))
+        self.widget_2.setPixmap(QtGui.QPixmap('second.png'))
 
     def defineModel(self):
 
@@ -270,7 +278,7 @@ class Ui_MainWindow(object):
 
 
         for i in range(observationIndex):
-
+            self.showImage(self.x_test[self.streamIndices[i]], "left")
 
             self.shotsLeft.setText(str(remained))
             friendly=self.FO(self.streamIndices[i])
@@ -290,7 +298,9 @@ class Ui_MainWindow(object):
             adversarial=self.AO(self.streamIndices[i])
             attackResult=adversarial[2]
             adversarialLoss=adversarial[1]
+            perturbation=adversarial[0]
 
+            self.showImage(np.squeeze(self.x_test[self.streamIndices[i]])+np.squeeze(perturbation), "right")
 
             estimatedCE=adversarialLoss-bestEstimatedReg
             self.CELoss.setText(str(estimatedCE))
@@ -364,7 +374,7 @@ class Ui_MainWindow(object):
             nl=[]
 
             for i in range(len(secretaryMemory)):
-                nl.append(round(secretaryMemory[i], 2))
+                nl.append(round(secretaryMemory[i], 3))
 
             self.secretaryMemory.setText(str(nl))
             time.sleep(self.T)
@@ -375,7 +385,7 @@ class Ui_MainWindow(object):
         self.secretaryStage.setText(stage)
 
         for i in range(observationIndex,len(self.streamIndices)):
-
+            self.showImage(self.x_test[self.streamIndices[i]], "left")
             self.shotsLeft.setText(str(remained))
             friendly = self.FO(self.streamIndices[i])
             friendlyLoss, initLoss = friendly[1],friendly[2]
@@ -393,10 +403,12 @@ class Ui_MainWindow(object):
             adversarial = self.AO(self.streamIndices[i])
             attackResult = adversarial[2]
             adversarialLoss = adversarial[1]
+            perturbation=adversarial[0]
 
             estimatedCE = adversarialLoss - bestEstimatedReg
             self.CELoss.setText(str(estimatedCE))
 
+            self.showImage(self, np.squeeze(self.x_test[self.streamIndices[i]])+np.squeeze(perturbation), "right")
 
             innerLossGroup = None
 
@@ -498,7 +510,7 @@ class Ui_MainWindow(object):
             nl=[]
 
             for i in range(len(secretaryMemory)):
-                nl.append(round(secretaryMemory[i],2))
+                nl.append(round(secretaryMemory[i],3))
 
             self.secretaryMemory.setText(str(nl))
 
@@ -644,6 +656,8 @@ class Ui_MainWindow(object):
         return(perturbation,temp+self.reg_loss,result)
 
     def start(self):
+
+
         self.K=int(self.attackBudget.text())
         self.epsilon_adv=float(self.advEpsilon.text())
         self.epsilon_fnd=float(self.fndEpsilon.text())
@@ -659,12 +673,56 @@ class Ui_MainWindow(object):
         # self.evalModel()
         self.calcReg(self.regStrength)
         self.prepareCorrectlyClassifiedStream()
+
+
+
+
+        self.widget.setScaledContents(True)
+        self.widget_2.setScaledContents(True)
+
+
+
         thread = self.thread(self)
         thread.start()
 
-        # print("leshape",self.x_test[0].shape)
-        # print(self.model(np.expand_dims(self.x_test[0], axis=0)))
-        # print(self.y_test[0])
+    def showImage(self,x,location):
+
+
+        xx = (x - np.min(x))/np.ptp(x)
+        print(location, np.amax(xx), np.amin(xx))
+
+
+        if location=="left":
+            stacked_img = np.stack((np.squeeze(xx),) * 3, axis=-1)
+            print(stacked_img.shape)
+            stacked_img = stacked_img * 255
+            stacked_img = stacked_img.astype(np.uint8)
+            stacked_img = Image.fromarray(stacked_img)
+            stacked_img.save("gile.png")
+            self.widget.setPixmap(QtGui.QPixmap('gile.png'))
+
+            stacked_img = np.stack((np.squeeze(np.ones((28,28))),) * 3, axis=-1)
+            stacked_img = stacked_img * 255
+            stacked_img = stacked_img.astype(np.uint8)
+            stacked_img = Image.fromarray(stacked_img)
+
+            stacked_img.save("second.png")
+
+            self.widget_2.setPixmap(QtGui.QPixmap('second.png'))
+
+        elif location=="right":
+            stacked_img = np.stack((np.squeeze(xx),) * 3, axis=-1)
+            stacked_img = stacked_img * 255
+            stacked_img = stacked_img.astype(np.uint8)
+            stacked_img = Image.fromarray(stacked_img)
+
+
+            stacked_img.save("gile.png")
+
+
+
+            self.widget_2.setPixmap(QtGui.QPixmap('gile.png'))
+
 
     class thread(threading.Thread):
         def __init__(self,other):
@@ -708,7 +766,7 @@ class Ui_MainWindow(object):
         self.result.setText(_translate("MainWindow", "N/A"))
         self.label_22.setText(_translate("MainWindow", "Fool rate"))
         self.foolRate.setText(_translate("MainWindow", "N/A"))
-        self.label_24.setText(_translate("MainWindow", "epsilon_adv"))
+        self.label_24.setText(_translate("MainWindow", "epsilon_fnd"))
         self.label_25.setText(_translate("MainWindow", "tile_fnd"))
         self.label_26.setText(_translate("MainWindow", "Clean image"))
         self.label_27.setText(_translate("MainWindow", "Adversarial image"))
